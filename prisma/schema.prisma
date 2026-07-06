@@ -17,8 +17,10 @@ enum Level {
   NIVEAU_2AC
   NIVEAU_3AC
   NIVEAU_TRONC_COMMUN
-  NIVEAU_1BAC
-  NIVEAU_2BAC
+  NIVEAU_1BAC_ECO
+  NIVEAU_1BAC_SC
+  NIVEAU_2BAC_ECO
+  NIVEAU_2BAC_SC
 }
 
 enum StudentStatus {
@@ -36,34 +38,54 @@ model User {
   updatedAt     DateTime @updatedAt
 }
 
+model Teacher {
+  id        String        @id @default(cuid())
+  firstName String
+  lastName  String
+  email     String?
+  phone     String?
+  address   String?
+  levels    TeacherLevel[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model TeacherLevel {
+  teacherId String
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  level     Level
+
+  @@id([teacherId, level])
+}
+
 model Student {
-  id            String        @id @default(cuid())
-  firstName     String
-  lastName      String
-  massar        String        @unique
-  level         Level
-  status        StudentStatus @default(ACTIVE)
-  reenrolled    Boolean       @default(false)
-  parentName    String?
-  parentPhone   String?
-  address       String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  grades        Grade[]
+  id              String            @id @default(cuid())
+  firstName       String
+  lastName        String
+  massar          String            @unique
+  level           Level
+  status          StudentStatus     @default(ACTIVE)
+  reenrolled      Boolean           @default(false)
+  parentName      String?
+  parentPhone     String?
+  address         String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  grades          Grade[]
   financialRecords FinancialRecord[]
 }
 
 model Grade {
-  id          String   @id @default(cuid())
-  studentId   String
-  subject     String
-  score       Float
-  coefficient Int      @default(1)
-  semester    Int
+  id           String   @id @default(cuid())
+  studentId    String
+  subject      String
+  score        Float
+  coefficient  Int      @default(1)
+  semester     Int
   academicYear String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }
 
 enum TransactionType {
@@ -73,13 +95,15 @@ enum TransactionType {
 }
 
 model FinancialRecord {
-  id          String          @id @default(cuid())
-  studentId   String?
-  type        TransactionType
-  amount      Float
-  description String
-  date        DateTime        @default(now())
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  student     Student?        @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  id           String          @id @default(cuid())
+  studentId    String?
+  type         TransactionType
+  amount       Float
+  description  String
+  date         DateTime        @default(now())
+  academicYear String
+  archived     Boolean         @default(false)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  student      Student?        @relation(fields: [studentId], references: [id], onDelete: SetNull)
 }

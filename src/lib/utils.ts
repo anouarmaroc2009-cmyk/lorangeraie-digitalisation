@@ -10,6 +10,25 @@ export const LEVEL_LABELS: Record<string, string> = {
   NIVEAU_2AC: "2AC",
   NIVEAU_3AC: "3AC",
   NIVEAU_TRONC_COMMUN: "Tronc Commun",
-  NIVEAU_1BAC: "1BAC",
-  NIVEAU_2BAC: "2BAC",
+  NIVEAU_1BAC_ECO: "1BAC Eco",
+  NIVEAU_1BAC_SC: "1BAC Sc",
+  NIVEAU_2BAC_ECO: "2BAC Eco",
+  NIVEAU_2BAC_SC: "2BAC Sc",
+}
+
+export function getAcademicYear(date?: Date): string {
+  const d = date ?? new Date()
+  const year = d.getFullYear()
+  const month = d.getMonth() + 1
+  if (month >= 9) return `${year}-${year + 1}`
+  return `${year - 1}-${year}`
+}
+
+export function getCurrentAcademicYear(): string {
+  return getAcademicYear()
+}
+
+export function isAfterJuly30(): boolean {
+  const now = new Date()
+  return now.getMonth() > 6 || (now.getMonth() === 6 && now.getDate() >= 30)
 }

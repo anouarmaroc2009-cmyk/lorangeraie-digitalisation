@@ -33,7 +33,7 @@ async function main() {
   console.log("Utilisateurs crees:", direction.email)
 
   const levels = Object.values(Level)
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 16; i++) {
     await prisma.student.create({
       data: {
         firstName: `Eleve${i + 1}`,
@@ -49,7 +49,7 @@ async function main() {
     })
   }
 
-  console.log("12 eleves de test crees avec succes")
+  console.log("16 eleves de test crees avec succes")
 }
 
 main()

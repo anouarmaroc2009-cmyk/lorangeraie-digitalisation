@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   GraduationCap,
   Wallet,
+  Users,
   LogOut,
   Menu,
   X,
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui/button"
 const navItems = [
   { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/dashboard/students", label: "Eleves", icon: GraduationCap },
+  { href: "/dashboard/teachers", label: "Enseignants", icon: Users },
 ]
 
 export default function Sidebar() {

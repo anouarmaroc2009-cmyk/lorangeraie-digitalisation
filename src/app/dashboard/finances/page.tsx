@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { LEVEL_LABELS } from "@/lib/utils"
-import { Wallet, TrendingUp, TrendingDown, DollarSign, Users, Plus } from "lucide-react"
+import { getAcademicYear } from "@/lib/utils"
+import { Wallet, TrendingUp, TrendingDown, DollarSign, Users, Plus, Archive, Calendar, CalendarRange } from "lucide-react"
 
 interface FinanceRecord {
   id: string
@@ -16,6 +16,8 @@ interface FinanceRecord {
   amount: number
   description: string
   date: string
+  academicYear: string
+  archived: boolean
   student?: { firstName: string; lastName: string; massar: string } | null
 }
 
@@ -28,6 +30,7 @@ interface FinanceData {
   totalExpenses: number
   totalSalaries: number
   balance: number
+  years: string[]
 }
 
 const typeOptions = [
@@ -40,8 +43,10 @@ export default function FinancesPage() {
   const { data: session } = useSession()
   const isDirection = session?.user?.role === "DIRECTION"
 
+  const [tab, setTab] = useState<"mensuel" | "annuelle">("mensuel")
   const [data, setData] = useState<FinanceData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [selectedYear, setSelectedYear] = useState("")
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({
     type: "TUITION",
@@ -52,40 +57,43 @@ export default function FinancesPage() {
 
   async function fetchFinances() {
     setLoading(true)
-    const res = await fetch("/api/finances")
+    const params = new URLSearchParams()
+    params.set("archived", tab === "annuelle" ? "true" : "false")
+    if (tab === "annuelle" && selectedYear) params.set("academicYear", selectedYear)
+    const res = await fetch(`/api/finances?${params}`)
     const json = await res.json()
     setData(json)
+    if (!selectedYear && json.years?.[0]) setSelectedYear(json.years[0])
     setLoading(false)
   }
 
-  useEffect(() => { fetchFinances() }, [])
+  useEffect(() => { fetchFinances() }, [tab, selectedYear])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    const body: any = {
+      type: form.type,
+      amount: parseFloat(form.amount),
+      description: form.description,
+    }
+    if (form.studentId) body.studentId = form.studentId
     await fetch("/api/finances", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: form.type,
-        amount: parseFloat(form.amount),
-        description: form.description,
-        studentId: form.studentId || null,
-      }),
+      body: JSON.stringify(body),
     })
     setForm({ type: "TUITION", amount: "", description: "", studentId: "" })
     setShowForm(false)
     fetchFinances()
   }
 
-  if (!isDirection) return null
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12 text-muted-foreground">
-        Chargement...
-      </div>
-    )
+  async function handleArchive() {
+    if (!confirm("Archiver toutes les transactions en cours pour l'annee " + getAcademicYear() + " ?")) return
+    await fetch("/api/finances/archive", { method: "POST" })
+    fetchFinances()
   }
+
+  if (!isDirection) return null
 
   const format = (n: number) => `${n.toLocaleString()} DH`
 
@@ -103,6 +111,51 @@ export default function FinancesPage() {
           Nouvelle transaction
         </Button>
       </div>
+
+      <div className="flex gap-1 rounded-lg border p-1 bg-slate-50 w-fit">
+        <button
+          onClick={() => setTab("mensuel")}
+          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+            tab === "mensuel" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"
+          }`}
+        >
+          <Calendar className="h-4 w-4" />
+          Mensuel
+        </button>
+        <button
+          onClick={() => setTab("annuelle")}
+          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+            tab === "annuelle" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"
+          }`}
+        >
+          <CalendarRange className="h-4 w-4" />
+          Annuelle
+        </button>
+      </div>
+
+      {tab === "mensuel" && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Annee en cours : <span className="font-medium text-slate-900">{getAcademicYear()}</span>
+          </p>
+          <Button variant="outline" onClick={handleArchive}>
+            <Archive className="mr-2 h-4 w-4" />
+            Archiver l&apos;annee
+          </Button>
+        </div>
+      )}
+
+      {tab === "annuelle" && data?.years && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Annee :</span>
+          <Select
+            options={data.years.map((y) => ({ value: y, label: y }))}
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(e.target.value)}
+            className="w-40"
+          />
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -202,55 +255,61 @@ export default function FinancesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Historique des transactions</CardTitle>
+          <CardTitle>
+            {tab === "mensuel" ? "Transactions en cours" : `Archive ${selectedYear || ""}`}
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left">
-                  <th className="pb-3 font-medium text-muted-foreground">Date</th>
-                  <th className="pb-3 font-medium text-muted-foreground">Type</th>
-                  <th className="pb-3 font-medium text-muted-foreground">Description</th>
-                  <th className="pb-3 font-medium text-muted-foreground">Eleve</th>
-                  <th className="pb-3 font-medium text-muted-foreground text-right">Montant</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data?.records.map((record) => (
-                  <tr key={record.id} className="border-b last:border-0 hover:bg-slate-50">
-                    <td className="py-3 text-muted-foreground">
-                      {new Date(record.date).toLocaleDateString("fr-FR")}
-                    </td>
-                    <td className="py-3">
-                      {record.type === "TUITION" && <Badge variant="success">Scolarite</Badge>}
-                      {record.type === "EXPENSE" && <Badge variant="destructive">Depense</Badge>}
-                      {record.type === "SALARY" && <Badge variant="warning">Salaire</Badge>}
-                    </td>
-                    <td className="py-3">{record.description}</td>
-                    <td className="py-3 text-muted-foreground">
-                      {record.student
-                        ? `${record.student.firstName} ${record.student.lastName}`
-                        : "-"}
-                    </td>
-                    <td className={`py-3 text-right font-medium ${
-                      record.type === "TUITION" ? "text-green-600" : "text-red-600"
-                    }`}>
-                      {record.type === "TUITION" ? "+" : "-"}
-                      {record.amount.toLocaleString()} DH
-                    </td>
+          {loading ? (
+            <div className="flex items-center justify-center py-8 text-muted-foreground">Chargement...</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left">
+                    <th className="pb-3 font-medium text-muted-foreground">Date</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Type</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Description</th>
+                    <th className="pb-3 font-medium text-muted-foreground">Eleve</th>
+                    <th className="pb-3 font-medium text-muted-foreground text-right">Montant</th>
                   </tr>
-                ))}
-                {data?.records.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-muted-foreground">
-                      Aucune transaction enregistree
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {data?.records.map((record) => (
+                    <tr key={record.id} className="border-b last:border-0 hover:bg-slate-50">
+                      <td className="py-3 text-muted-foreground">
+                        {new Date(record.date).toLocaleDateString("fr-FR")}
+                      </td>
+                      <td className="py-3">
+                        {record.type === "TUITION" && <Badge variant="success">Scolarite</Badge>}
+                        {record.type === "EXPENSE" && <Badge variant="destructive">Depense</Badge>}
+                        {record.type === "SALARY" && <Badge variant="warning">Salaire</Badge>}
+                      </td>
+                      <td className="py-3">{record.description}</td>
+                      <td className="py-3 text-muted-foreground">
+                        {record.student
+                          ? `${record.student.firstName} ${record.student.lastName}`
+                          : "-"}
+                      </td>
+                      <td className={`py-3 text-right font-medium ${
+                        record.type === "TUITION" ? "text-green-600" : "text-red-600"
+                      }`}>
+                        {record.type === "TUITION" ? "+" : "-"}
+                        {record.amount.toLocaleString()} DH
+                      </td>
+                    </tr>
+                  ))}
+                  {data?.records.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-muted-foreground">
+                        Aucune transaction
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

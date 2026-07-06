@@ -9,9 +9,21 @@ const LEVEL_ORDER: Level[] = [
   "NIVEAU_2AC",
   "NIVEAU_3AC",
   "NIVEAU_TRONC_COMMUN",
-  "NIVEAU_1BAC",
-  "NIVEAU_2BAC",
+  "NIVEAU_1BAC_ECO",
+  "NIVEAU_1BAC_SC",
+  "NIVEAU_2BAC_ECO",
+  "NIVEAU_2BAC_SC",
 ]
+
+function isLastLevel(level: Level): boolean {
+  return level === "NIVEAU_2BAC_ECO" || level === "NIVEAU_2BAC_SC"
+}
+
+function getNextLevel(level: Level): Level | null {
+  const i = LEVEL_ORDER.indexOf(level)
+  if (i < 0 || i >= LEVEL_ORDER.length - 1) return null
+  return LEVEL_ORDER[i + 1]
+}
 
 export async function POST() {
   const session = await getServerSession(authOptions)
@@ -34,21 +46,21 @@ export async function POST() {
           student.grades.reduce((sum, g) => sum + g.coefficient, 0)
         : 0
 
-    const currentIndex = LEVEL_ORDER.indexOf(student.level)
-    const isLastLevel = student.level === "NIVEAU_2BAC"
-
-    if (isLastLevel || (!student.reenrolled && avg >= 10)) {
+    if (isLastLevel(student.level) || (!student.reenrolled && avg >= 10)) {
       await prisma.student.update({
         where: { id: student.id },
         data: { status: "ARCHIVED" },
       })
       archived++
-    } else if (student.reenrolled && avg >= 10 && currentIndex < LEVEL_ORDER.length - 1) {
-      await prisma.student.update({
-        where: { id: student.id },
-        data: { level: LEVEL_ORDER[currentIndex + 1] },
-      })
-      promoted++
+    } else if (student.reenrolled && avg >= 10) {
+      const next = getNextLevel(student.level)
+      if (next) {
+        await prisma.student.update({
+          where: { id: student.id },
+          data: { level: next },
+        })
+        promoted++
+      }
     }
   }
 

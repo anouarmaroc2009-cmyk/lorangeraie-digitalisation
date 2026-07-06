@@ -2,14 +2,23 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { getAcademicYear } from "@/lib/utils"
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getServerSession(authOptions)
   if (!session || session.user.role !== "DIRECTION") {
     return NextResponse.json({ error: "Acces refuse" }, { status: 403 })
   }
 
+  const { searchParams } = new URL(req.url)
+  const archived = searchParams.get("archived") === "true"
+  const academicYear = searchParams.get("academicYear")
+
+  const where: any = { archived }
+  if (academicYear) where.academicYear = academicYear
+
   const records = await prisma.financialRecord.findMany({
+    where,
     include: { student: { select: { firstName: true, lastName: true, massar: true } } },
     orderBy: { date: "desc" },
   })
@@ -22,6 +31,11 @@ export async function GET() {
   const totalExpenses = expenses.reduce((sum, r) => sum + r.amount, 0)
   const totalSalaries = salaries.reduce((sum, r) => sum + r.amount, 0)
 
+  const years = await prisma.financialRecord.groupBy({
+    by: ["academicYear"],
+    orderBy: { academicYear: "desc" },
+  })
+
   return NextResponse.json({
     records,
     tuitions,
@@ -31,6 +45,7 @@ export async function GET() {
     totalExpenses,
     totalSalaries,
     balance: totalTuition - totalExpenses - totalSalaries,
+    years: years.map((y) => y.academicYear),
   })
 }
 
@@ -41,6 +56,18 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json()
-  const record = await prisma.financialRecord.create({ data: body })
+  const academicYear = getAcademicYear(body.date ? new Date(body.date) : undefined)
+
+  const record = await prisma.financialRecord.create({
+    data: {
+      type: body.type,
+      amount: parseFloat(body.amount),
+      description: body.description,
+      studentId: body.studentId || null,
+      date: body.date ? new Date(body.date) : undefined,
+      academicYear,
+      archived: false,
+    },
+  })
   return NextResponse.json(record)
 }

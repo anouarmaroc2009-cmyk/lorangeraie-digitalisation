@@ -32,5 +32,5 @@ export default withAuth(
 )
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/api/students/:path*", "/api/finances/:path*", "/api/expenses/:path*", "/api/salaries/:path*"],
+  matcher: ["/dashboard/:path*", "/api/students/:path*", "/api/teachers/:path*", "/api/finances/:path*", "/api/expenses/:path*", "/api/salaries/:path*"],
 }
