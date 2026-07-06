@@ -10,7 +10,7 @@ import { Select } from "@/components/ui/select"
 import { getAcademicYear, cn } from "@/lib/utils"
 import {
   Wallet, TrendingDown, TrendingUp, Plus, Trash2, RefreshCw,
-  AlertOctagon, Zap, Wifi, Droplets, Users, Building2, MoreHorizontal
+  AlertOctagon, Zap, Wifi, Droplets, Users, Building2, MoreHorizontal, RotateCcw
 } from "lucide-react"
 
 const EXPENSE_TYPES = [
@@ -160,6 +160,29 @@ export default function DepensesPage() {
           <AlertOctagon className="h-5 w-5 shrink-0" />
           <span>{error}</span>
         </div>
+      )}
+
+      {isDirection && (
+        <Card className="border-red-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-600"><AlertOctagon className="h-5 w-5" /> Zone danger</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-3 text-sm text-muted-foreground">Supprimer toutes les données financières (suivi des paiements + dépenses). Action irréversible.</p>
+            <Button variant="destructive" size="sm" onClick={async () => {
+              if (!confirm("Voulez-vous vraiment TOUT remettre à zéro ? Cette action est irreversible.")) return
+              if (!confirm("Confirmation finale : toutes les donnees financieres seront perdues.")) return
+              try {
+                const r = await fetch("/api/finances/reset", { method: "POST" })
+                if (!r.ok) throw new Error("Erreur lors du reset")
+                setError("")
+                load()
+              } catch (e: any) { setError(e.message) }
+            }}>
+              <RotateCcw className="mr-1 h-4 w-4" /> Remettre à zéro
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid gap-4 sm:grid-cols-3">
