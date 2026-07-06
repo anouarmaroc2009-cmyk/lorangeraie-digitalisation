@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  DIRECTION
+  STAFF
+}
+
+enum Level {
+  NIVEAU_1AC
+  NIVEAU_2AC
+  NIVEAU_3AC
+  NIVEAU_TRONC_COMMUN
+  NIVEAU_1BAC
+  NIVEAU_2BAC
+}
+
+enum StudentStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  name          String
+  role          Role
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Student {
+  id            String        @id @default(cuid())
+  firstName     String
+  lastName      String
+  massar        String        @unique
+  level         Level
+  status        StudentStatus @default(ACTIVE)
+  reenrolled    Boolean       @default(false)
+  parentName    String?
+  parentPhone   String?
+  address       String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  grades        Grade[]
+  financialRecords FinancialRecord[]
+}
+
+model Grade {
+  id          String   @id @default(cuid())
+  studentId   String
+  subject     String
+  score       Float
+  coefficient Int      @default(1)
+  semester    Int
+  academicYear String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+enum TransactionType {
+  TUITION
+  EXPENSE
+  SALARY
+}
+
+model FinancialRecord {
+  id          String          @id @default(cuid())
+  studentId   String?
+  type        TransactionType
+  amount      Float
+  description String
+  date        DateTime        @default(now())
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  student     Student?        @relation(fields: [studentId], references: [id], onDelete: SetNull)
+}
