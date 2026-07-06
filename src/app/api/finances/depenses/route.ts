@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { getAcademicYear } from "@/lib/utils"
+import { getCached, setCache, clearCache } from "@/lib/redis"
 
 export const dynamic = "force-dynamic"
 
@@ -15,6 +16,10 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url)
     const year = searchParams.get("academicYear") || getAcademicYear()
+
+    const cacheKey = `depenses:${year}`
+    const cached = await getCached<any>(cacheKey)
+    if (cached) return NextResponse.json(cached)
 
     const allRecords = await prisma.financialRecord.findMany({
       where: { academicYear: year, type: { in: ["EXPENSE", "SALARY"] } },
@@ -37,14 +42,9 @@ export async function GET(req: Request) {
       byCategory[cat].records.push(r)
     }
 
-    return NextResponse.json({
-      records: allRecords,
-      byCategory,
-      totalIncome,
-      totalExpenses,
-      balance: totalIncome - totalExpenses,
-      academicYear: year,
-    })
+    const result = { records: allRecords, byCategory, totalIncome, totalExpenses, balance: totalIncome - totalExpenses, academicYear: year }
+    await setCache(cacheKey, result, 30)
+    return NextResponse.json(result)
   } catch (error) {
     console.error("ERREUR /api/finances/depenses:", error)
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 })
@@ -71,6 +71,9 @@ export async function POST(req: Request) {
         academicYear,
       },
     })
+
+    await clearCache(`depenses:${academicYear}`)
+    await clearCache(`suivi:*`)
 
     return NextResponse.json(record)
   } catch (error) {

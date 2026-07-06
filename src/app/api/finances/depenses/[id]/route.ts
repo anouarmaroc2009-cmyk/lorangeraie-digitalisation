@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { clearCache } from "@/lib/redis"
 
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
@@ -11,6 +12,8 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     }
 
     await prisma.financialRecord.delete({ where: { id: params.id } })
+    await clearCache(`depenses:*`)
+    await clearCache(`suivi:*`)
     return NextResponse.json({ deleted: true })
   } catch (error) {
     console.error("ERREUR DELETE depense:", error)

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { getAcademicYear, LEVEL_LABELS } from "@/lib/utils"
+import { getCached, setCache, clearCache } from "@/lib/redis"
 
 export const dynamic = "force-dynamic"
 
@@ -16,6 +17,10 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url)
     const levelFilter = searchParams.get("level") || "ALL"
     const academicYear = searchParams.get("academicYear") || getAcademicYear()
+
+    const cacheKey = `suivi:${academicYear}:${levelFilter}`
+    const cached = await getCached<any>(cacheKey)
+    if (cached) return NextResponse.json(cached)
 
     const whereFilter: any = { status: "ACTIVE" }
     if (levelFilter !== "ALL") {
@@ -85,7 +90,9 @@ export async function GET(req: Request) {
       label: LEVEL_LABELS[key] || key,
     }))
 
-    return NextResponse.json({ students: mapped, stats, classes, academicYear })
+    const result = { students: mapped, stats, classes, academicYear }
+    await setCache(cacheKey, result, 30)
+    return NextResponse.json(result)
   } catch (error) {
     console.error("ERREUR suivi:", error)
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 })

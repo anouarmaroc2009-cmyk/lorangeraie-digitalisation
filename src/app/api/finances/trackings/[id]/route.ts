@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { getAcademicYear } from "@/lib/utils"
+import { clearCache } from "@/lib/redis"
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -112,6 +113,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       data: { monthlyAmount: monthly, tuitionDue: monthly * 10 },
     })
   }
+
+  await clearCache(`suivi:*`)
 
   const updated = await prisma.tuitionTracking.findUnique({
     where: { id: params.id },
