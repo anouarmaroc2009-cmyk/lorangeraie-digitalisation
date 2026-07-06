@@ -136,4 +136,16 @@ model FinancialRecord {
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
   student      Student?        @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  receipt      Receipt?
+}
+
+model Receipt {
+  id                String          @id @default(cuid())
+  number            Int
+  academicYear      String
+  financialRecordId String          @unique
+  financialRecord   FinancialRecord @relation(fields: [financialRecordId], references: [id], onDelete: Cascade)
+  createdAt         DateTime        @default(now())
+
+  @@unique([number, academicYear])
 }

@@ -18,13 +18,28 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   })
   if (!tracking) return NextResponse.json({ error: "Introuvable" }, { status: 404 })
 
+  let lastReceiptId: string | null = null
+
+  const acYear = tracking.academicYear
+
+  async function createReceipt(frId: string) {
+    const last = await prisma.receipt.findFirst({
+      where: { academicYear: acYear },
+      orderBy: { number: "desc" },
+    })
+    const r = await prisma.receipt.create({
+      data: { financialRecordId: frId, number: (last?.number ?? 0) + 1, academicYear: acYear },
+    })
+    lastReceiptId = r.id
+  }
+
   if (action === "pay-inscription") {
     const fee = amount || tracking.inscriptionFee || 0
     await prisma.tuitionTracking.update({
       where: { id: params.id },
       data: { inscriptionPaid: true },
     })
-    await prisma.financialRecord.create({
+    const fr = await prisma.financialRecord.create({
       data: {
         studentId: tracking.studentId,
         type: "INSCRIPTION",
@@ -34,6 +49,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         archived: false,
       },
     })
+    await createReceipt(fr.id)
   }
 
   if (action === "pay-months") {
@@ -49,7 +65,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     })
     if (addedAmount > 0) {
       const label = addedMonths > 1 ? `${addedMonths} mois` : "1 mois"
-      await prisma.financialRecord.create({
+      const fr = await prisma.financialRecord.create({
         data: {
           studentId: tracking.studentId,
           type: "TUITION",
@@ -59,6 +75,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
           archived: false,
         },
       })
+      await createReceipt(fr.id)
     }
   }
 
@@ -74,7 +91,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       },
     })
     if (remaining > 0) {
-      await prisma.financialRecord.create({
+      const fr = await prisma.financialRecord.create({
         data: {
           studentId: tracking.studentId,
           type: "TUITION",
@@ -84,6 +101,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
           archived: false,
         },
       })
+      await createReceipt(fr.id)
     }
   }
 
@@ -99,5 +117,5 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     where: { id: params.id },
     include: { student: { select: { firstName: true, lastName: true, massar: true, level: true } } },
   })
-  return NextResponse.json(updated)
+  return NextResponse.json({ ...updated, receiptId: lastReceiptId })
 }

@@ -99,8 +99,10 @@ export default function FinancesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "pay-months", months: n }),
       })
+      const j = await r.json()
       if (!r.ok) throw new Error("Échec paiement")
       load()
+      if (j.receiptId) router.push(`/dashboard/finances/recu/${j.receiptId}`)
     } catch (e: any) { setError(e.message) }
   }
 
@@ -112,8 +114,10 @@ export default function FinancesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "pay-inscription" }),
       })
+      const j = await r.json()
       if (!r.ok) throw new Error("Échec paiement")
       load()
+      if (j.receiptId) router.push(`/dashboard/finances/recu/${j.receiptId}`)
     } catch (e: any) { setError(e.message) }
   }
 
@@ -125,8 +129,10 @@ export default function FinancesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "pay-full-year" }),
       })
+      const j = await r.json()
       if (!r.ok) throw new Error("Échec paiement")
       load()
+      if (j.receiptId) router.push(`/dashboard/finances/recu/${j.receiptId}`)
     } catch (e: any) { setError(e.message) }
   }
 
