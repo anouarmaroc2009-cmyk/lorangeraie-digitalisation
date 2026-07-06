@@ -24,10 +24,12 @@ export async function GET(req: Request) {
   })
 
   const tuitions = records.filter((r) => r.type === "TUITION")
+  const inscriptions = records.filter((r) => r.type === "INSCRIPTION")
   const expenses = records.filter((r) => r.type === "EXPENSE")
   const salaries = records.filter((r) => r.type === "SALARY")
 
   const totalTuition = tuitions.reduce((sum, r) => sum + r.amount, 0)
+  const totalInscriptions = inscriptions.reduce((sum, r) => sum + r.amount, 0)
   const totalExpenses = expenses.reduce((sum, r) => sum + r.amount, 0)
   const totalSalaries = salaries.reduce((sum, r) => sum + r.amount, 0)
 
@@ -39,12 +41,14 @@ export async function GET(req: Request) {
   return NextResponse.json({
     records,
     tuitions,
+    inscriptions,
     expenses,
     salaries,
     totalTuition,
+    totalInscriptions,
     totalExpenses,
     totalSalaries,
-    balance: totalTuition - totalExpenses - totalSalaries,
+    balance: totalTuition + totalInscriptions - totalExpenses - totalSalaries,
     years: years.map((y) => y.academicYear),
   })
 }

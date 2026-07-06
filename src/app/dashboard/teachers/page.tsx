@@ -78,13 +78,24 @@ export default function TeachersPage() {
   }
 
   async function handleSave() {
-    const method = editing ? "PUT" : "POST"
-    const url = editing ? `/api/teachers/${editing}` : "/api/teachers"
-    await fetch(url, {
+    if (!form.firstName.trim() || !form.lastName.trim()) {
+      alert("Le nom et le prenom sont obligatoires")
+      return
+    }
+    const isNew = editing === "new"
+    const url = isNew ? "/api/teachers" : `/api/teachers/${editing}`
+    const method = isNew ? "POST" : "PUT"
+    const payload = { ...form, email: form.email || null, phone: form.phone || null, address: form.address || null }
+    const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     })
+    if (!res.ok) {
+      const err = await res.json()
+      alert("Erreur: " + (err.error || "Impossible d'enregistrer"))
+      return
+    }
     resetForm()
     fetchTeachers()
   }

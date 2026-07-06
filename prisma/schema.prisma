@@ -73,6 +73,7 @@ model Student {
   updatedAt       DateTime          @updatedAt
   grades          Grade[]
   financialRecords FinancialRecord[]
+  tuitionTrackings TuitionTracking[]
 }
 
 model Grade {
@@ -88,10 +89,33 @@ model Grade {
   student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }
 
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+}
+
 enum TransactionType {
   TUITION
+  INSCRIPTION
   EXPENSE
   SALARY
+}
+
+model TuitionTracking {
+  id              String        @id @default(cuid())
+  studentId       String
+  academicYear    String
+  tuitionDue      Float
+  tuitionPaid     Float         @default(0)
+  inscriptionPaid Boolean       @default(false)
+  paidFullYear    Boolean       @default(false)
+  status          PaymentStatus @default(UNPAID)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  student         Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, academicYear])
 }
 
 model FinancialRecord {
