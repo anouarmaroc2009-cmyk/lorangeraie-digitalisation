@@ -30,10 +30,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Acces refuse" }, { status: 403 })
   }
 
-  const { academicYear, tuitionDue } = await req.json()
+  const { academicYear } = await req.json()
   const year = academicYear || getAcademicYear()
 
-  const students = await prisma.student.findMany({ where: { status: "ACTIVE" } })
+  const students = await prisma.student.findMany({
+    where: { status: "ACTIVE" },
+    select: { id: true, monthlyTuition: true, inscriptionFee: true },
+  })
 
   let created = 0
   for (const student of students) {
@@ -41,11 +44,14 @@ export async function POST(req: Request) {
       where: { studentId_academicYear: { studentId: student.id, academicYear: year } },
     })
     if (!existing) {
+      const monthly = student.monthlyTuition ?? 0
       await prisma.tuitionTracking.create({
         data: {
           studentId: student.id,
           academicYear: year,
-          tuitionDue: tuitionDue || 0,
+          monthlyAmount: monthly,
+          tuitionDue: monthly * 10,
+          inscriptionFee: student.inscriptionFee ?? 0,
         },
       })
       created++

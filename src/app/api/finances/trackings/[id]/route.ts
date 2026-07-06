@@ -19,6 +19,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (!tracking) return NextResponse.json({ error: "Introuvable" }, { status: 404 })
 
   if (action === "pay-inscription") {
+    const fee = amount || tracking.inscriptionFee || 0
     await prisma.tuitionTracking.update({
       where: { id: params.id },
       data: { inscriptionPaid: true },
@@ -27,8 +28,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       data: {
         studentId: tracking.studentId,
         type: "INSCRIPTION",
-        amount: amount || 0,
-        description: `Frais d'inscription - ${tracking.student.firstName} ${tracking.student.lastName}`,
+        amount: fee,
+        description: `Frais d'inscription ${tracking.academicYear} - ${tracking.student.firstName} ${tracking.student.lastName}`,
         academicYear: tracking.academicYear,
         archived: false,
       },
@@ -76,10 +77,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     })
   }
 
-  if (action === "update-due") {
+  if (action === "update-monthly") {
+    const monthly = amount || 0
     await prisma.tuitionTracking.update({
       where: { id: params.id },
-      data: { tuitionDue: amount || 0 },
+      data: { monthlyAmount: monthly, tuitionDue: monthly * 10 },
     })
   }
 

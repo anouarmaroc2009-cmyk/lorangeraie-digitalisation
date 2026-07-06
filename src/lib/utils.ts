@@ -16,6 +16,23 @@ export const LEVEL_LABELS: Record<string, string> = {
   NIVEAU_2BAC_SC: "2BAC Sc",
 }
 
+export const LEVEL_GROUPS: Record<string, string> = {
+  NIVEAU_1AC: "1AC",
+  NIVEAU_2AC: "2AC",
+  NIVEAU_3AC: "3AC",
+  NIVEAU_TRONC_COMMUN: "TC",
+  NIVEAU_1BAC_ECO: "1BAC",
+  NIVEAU_1BAC_SC: "1BAC",
+  NIVEAU_2BAC_ECO: "2BAC",
+  NIVEAU_2BAC_SC: "2BAC",
+}
+
+export const LEVEL_GROUP_ORDER = ["1AC", "2AC", "3AC", "TC", "1BAC", "2BAC"]
+
+export function getLevelGroup(level: string): string {
+  return LEVEL_GROUPS[level] ?? level
+}
+
 export function getAcademicYear(date?: Date): string {
   const d = date ?? new Date()
   const year = d.getFullYear()

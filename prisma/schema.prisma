@@ -66,6 +66,8 @@ model Student {
   level           Level
   status          StudentStatus     @default(ACTIVE)
   reenrolled      Boolean           @default(false)
+  monthlyTuition  Float?
+  inscriptionFee  Float?
   parentName      String?
   parentPhone     String?
   address         String?
@@ -106,8 +108,10 @@ model TuitionTracking {
   id              String        @id @default(cuid())
   studentId       String
   academicYear    String
+  monthlyAmount   Float         @default(0)
   tuitionDue      Float
   tuitionPaid     Float         @default(0)
+  inscriptionFee  Float         @default(0)
   inscriptionPaid Boolean       @default(false)
   paidFullYear    Boolean       @default(false)
   status          PaymentStatus @default(UNPAID)

@@ -30,6 +30,8 @@ export default function StudentDetailPage() {
     level: "NIVEAU_1AC",
     status: "ACTIVE",
     reenrolled: false,
+    monthlyTuition: "",
+    inscriptionFee: "",
     parentName: "",
     parentPhone: "",
     address: "",
@@ -48,6 +50,8 @@ export default function StudentDetailPage() {
             level: data.level,
             status: data.status,
             reenrolled: data.reenrolled,
+            monthlyTuition: data.monthlyTuition?.toString() ?? "",
+            inscriptionFee: data.inscriptionFee?.toString() ?? "",
             parentName: data.parentName ?? "",
             parentPhone: data.parentPhone ?? "",
             address: data.address ?? "",
@@ -63,10 +67,15 @@ export default function StudentDetailPage() {
     const url = isNew ? "/api/students" : `/api/students/${params.id}`
     const method = isNew ? "POST" : "PUT"
 
+    const payload = {
+      ...form,
+      monthlyTuition: form.monthlyTuition ? parseFloat(form.monthlyTuition) : null,
+      inscriptionFee: form.inscriptionFee ? parseFloat(form.inscriptionFee) : null,
+    }
     await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     })
 
     setSaving(false)
@@ -186,6 +195,32 @@ export default function StudentDetailPage() {
             <label htmlFor="reenrolled" className="text-sm font-medium">
               Reinscrit pour l&apos;annee prochaine
             </label>
+          </div>
+
+          <div className="border-t pt-4">
+            <p className="text-sm font-semibold text-slate-900 mb-3">Frais de scolarite</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Mensualite (DH/mois)</label>
+                <Input
+                  type="number" min="0" step="100"
+                  value={form.monthlyTuition}
+                  onChange={(e) => setForm({ ...form, monthlyTuition: e.target.value })}
+                  disabled={!isDirection}
+                  placeholder="Ex: 500"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Frais d'inscription (DH/an)</label>
+                <Input
+                  type="number" min="0" step="100"
+                  value={form.inscriptionFee}
+                  onChange={(e) => setForm({ ...form, inscriptionFee: e.target.value })}
+                  disabled={!isDirection}
+                  placeholder="Ex: 1000"
+                />
+              </div>
+            </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

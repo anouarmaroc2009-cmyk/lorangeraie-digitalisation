@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { getAcademicYear, LEVEL_LABELS } from "@/lib/utils"
+import { getAcademicYear, LEVEL_LABELS, getLevelGroup, LEVEL_GROUP_ORDER } from "@/lib/utils"
 import {
   Wallet, TrendingUp, TrendingDown, DollarSign, Users, Plus,
   Archive, Calendar, CalendarRange, CheckCircle, XCircle,
@@ -29,7 +29,8 @@ interface FinanceData {
 
 interface Tracking {
   id: string; studentId: string; academicYear: string
-  tuitionDue: number; tuitionPaid: number; inscriptionPaid: boolean
+  monthlyAmount: number; tuitionDue: number; tuitionPaid: number
+  inscriptionFee: number; inscriptionPaid: boolean
   paidFullYear: boolean; status: "UNPAID" | "PARTIAL" | "PAID"
   student: { id: string; firstName: string; lastName: string; massar: string; level: string; status: string }
 }
@@ -53,7 +54,6 @@ export default function FinancesPage() {
   const [showForm, setShowForm] = useState(false)
   const [payingStudent, setPayingStudent] = useState<string | null>(null)
   const [payAmount, setPayAmount] = useState("")
-  const [tuitionDefault, setTuitionDefault] = useState("5000")
   const [form, setForm] = useState({ type: "TUITION", amount: "", description: "", studentId: "" })
 
   const year = getAcademicYear()
@@ -101,11 +101,11 @@ export default function FinancesPage() {
   }
 
   async function handleInitYear() {
-    if (!confirm(`Initialiser le suivi des paiements pour ${year} avec frais par defaut de ${tuitionDefault} DH ?`)) return
+    if (!confirm(`Initialiser le suivi des paiements pour ${year} ? (les frais mensuels seront recuperes depuis chaque eleve)`)) return
     await fetch("/api/finances/trackings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ academicYear: year, tuitionDue: parseFloat(tuitionDefault) }),
+      body: JSON.stringify({ academicYear: year }),
     })
     fetchAll()
   }
@@ -247,11 +247,6 @@ export default function FinancesPage() {
             <div className="flex items-center justify-between">
               <CardTitle>Suivi des paiements - {year}</CardTitle>
               <div className="flex items-center gap-2">
-                <Input
-                  type="number" placeholder="Frais annuels"
-                  value={tuitionDefault} onChange={(e) => setTuitionDefault(e.target.value)}
-                  className="w-28"
-                />
                 <Button variant="outline" size="sm" onClick={handleInitYear}>
                   <RotateCcw className="mr-1 h-3 w-3" /> Initialiser
                 </Button>
@@ -268,90 +263,124 @@ export default function FinancesPage() {
                 <p className="text-xs mt-1">Cliquez sur "Initialiser" pour creer le suivi des paiements</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-left">
-                      <th className="pb-3 font-medium text-muted-foreground">Eleve</th>
-                      <th className="pb-3 font-medium text-muted-foreground">Niveau</th>
-                      <th className="pb-3 font-medium text-muted-foreground text-right">Frais annuels</th>
-                      <th className="pb-3 font-medium text-muted-foreground text-right">Paye</th>
-                      <th className="pb-3 font-medium text-muted-foreground text-right">Reste</th>
-                      <th className="pb-3 font-medium text-muted-foreground text-center">Inscription</th>
-                      <th className="pb-3 font-medium text-muted-foreground text-center">Statut</th>
-                      <th className="pb-3 font-medium text-muted-foreground">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {trackings.map((t) => {
-                      const remaining = t.tuitionDue - t.tuitionPaid
-                      return (
-                        <tr key={t.id} className="border-b last:border-0 hover:bg-slate-50">
-                          <td className="py-3">
-                            <p className="font-medium">{t.student.lastName} {t.student.firstName}</p>
-                            <p className="text-xs text-muted-foreground font-mono">{t.student.massar}</p>
-                          </td>
-                          <td className="py-3">
-                            <Badge variant="secondary">{LEVEL_LABELS[t.student.level] || t.student.level}</Badge>
-                          </td>
-                          <td className="py-3 text-right font-medium">
-                            {t.tuitionDue.toLocaleString()} DH
-                          </td>
-                          <td className="py-3 text-right font-medium text-green-600">
-                            {t.tuitionPaid.toLocaleString()} DH
-                          </td>
-                          <td className="py-3 text-right font-medium">
-                            <span className={remaining > 0 ? "text-red-600" : "text-green-600"}>
-                              {remaining.toLocaleString()} DH
+              <div className="space-y-6">
+                {(() => {
+                  const grouped = new Map<string, Tracking[]>()
+                  trackings.forEach((t) => {
+                    const group = getLevelGroup(t.student.level)
+                    if (!grouped.has(group)) grouped.set(group, [])
+                    grouped.get(group)!.push(t)
+                  })
+                  return LEVEL_GROUP_ORDER.map((group) => {
+                    const items = grouped.get(group)
+                    if (!items || items.length === 0) return null
+                    const groupTotal = items.reduce((s, t) => s + t.tuitionDue, 0)
+                    const groupPaid = items.reduce((s, t) => s + t.tuitionPaid, 0)
+                    const groupRemaining = groupTotal - groupPaid
+                    return (
+                      <div key={group}>
+                        <div className="flex items-center justify-between bg-slate-100 px-4 py-2 rounded-t-md border-b">
+                          <h3 className="font-semibold text-lg">{group}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Total: <span className="font-medium">{groupTotal.toLocaleString()} DH</span>
+                            {" | "}Paye: <span className="font-medium text-green-600">{groupPaid.toLocaleString()} DH</span>
+                            {" | "}Reste: <span className={`font-medium ${groupRemaining > 0 ? "text-red-600" : "text-green-600"}`}>
+                              {groupRemaining.toLocaleString()} DH
                             </span>
-                          </td>
-                          <td className="py-3 text-center">
-                            {t.inscriptionPaid ? (
-                              <CheckCircle className="mx-auto h-5 w-5 text-green-500" />
-                            ) : (
-                              <button
-                                onClick={() => {
-                                  const amt = prompt("Montant de l'inscription (DH):", "500")
-                                  if (amt) handlePayAction(t.id, "pay-inscription", parseFloat(amt))
-                                }}
-                                className="text-red-500 hover:text-red-700"
-                                title="Marquer inscription payee"
-                              >
-                                <XCircle className="mx-auto h-5 w-5" />
-                              </button>
-                            )}
-                          </td>
-                          <td className="py-3 text-center">{getStatusBadge(t)}</td>
-                          <td className="py-3">
-                            <div className="flex flex-wrap gap-1">
-                              <Button
-                                variant="outline" size="sm"
-                                onClick={() => {
-                                  const amt = prompt("Montant du paiement (DH):", String(remaining > 0 ? remaining : 0))
-                                  if (amt) handlePayAction(t.id, "pay-tuition", parseFloat(amt))
-                                }}
-                                disabled={t.status === "PAID"}
-                              >
-                                <CreditCard className="mr-1 h-3 w-3" /> Payer
-                              </Button>
-                              {remaining > 0 && (
-                                <Button
-                                  variant="outline" size="sm"
-                                  onClick={() => {
-                                    if (confirm(`Payer l'annee complete pour ${t.student.firstName} ${t.student.lastName} ? (${remaining.toLocaleString()} DH)`))
-                                      handlePayAction(t.id, "pay-full-year")
-                                  }}
-                                >
-                                  <DollarSign className="mr-1 h-3 w-3" /> Annee
-                                </Button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+                          </p>
+                        </div>
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b text-left bg-slate-50">
+                              <th className="px-4 py-2 font-medium text-muted-foreground">Eleve</th>
+                              <th className="px-4 py-2 font-medium text-muted-foreground">Niveau</th>
+                              <th className="px-4 py-2 font-medium text-muted-foreground text-right">Mensualite</th>
+                              <th className="px-4 py-2 font-medium text-muted-foreground text-right">Frais annuels</th>
+                              <th className="px-4 py-2 font-medium text-muted-foreground text-right">Paye</th>
+                              <th className="px-4 py-2 font-medium text-muted-foreground text-right">Reste</th>
+                              <th className="px-4 py-2 font-medium text-muted-foreground text-center">Inscription</th>
+                              <th className="px-4 py-2 font-medium text-muted-foreground text-center">Statut</th>
+                              <th className="px-4 py-2 font-medium text-muted-foreground">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {items.map((t) => {
+                              const remaining = t.tuitionDue - t.tuitionPaid
+                              return (
+                                <tr key={t.id} className="border-b last:border-0 hover:bg-slate-50">
+                                  <td className="px-4 py-3">
+                                    <p className="font-medium">{t.student.lastName} {t.student.firstName}</p>
+                                    <p className="text-xs text-muted-foreground font-mono">{t.student.massar}</p>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <Badge variant="secondary">{LEVEL_LABELS[t.student.level] || t.student.level}</Badge>
+                                  </td>
+                                  <td className="px-4 py-3 text-right font-medium">
+                                    {t.monthlyAmount.toLocaleString()} DH
+                                  </td>
+                                  <td className="px-4 py-3 text-right font-medium">
+                                    {t.tuitionDue.toLocaleString()} DH
+                                  </td>
+                                  <td className="px-4 py-3 text-right font-medium text-green-600">
+                                    {t.tuitionPaid.toLocaleString()} DH
+                                  </td>
+                                  <td className="px-4 py-3 text-right font-medium">
+                                    <span className={remaining > 0 ? "text-red-600" : "text-green-600"}>
+                                      {remaining.toLocaleString()} DH
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    {t.inscriptionPaid ? (
+                                      <CheckCircle className="mx-auto h-5 w-5 text-green-500" />
+                                    ) : (
+                                      <button
+                                        onClick={() => {
+                                          const defaultFee = t.inscriptionFee || 500
+                                          const amt = prompt("Montant de l'inscription (DH):", String(defaultFee))
+                                          if (amt) handlePayAction(t.id, "pay-inscription", parseFloat(amt))
+                                        }}
+                                        className="text-red-500 hover:text-red-700"
+                                        title="Marquer inscription payee"
+                                      >
+                                        <XCircle className="mx-auto h-5 w-5" />
+                                      </button>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-3 text-center">{getStatusBadge(t)}</td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex flex-wrap gap-1">
+                                      <Button
+                                        variant="outline" size="sm"
+                                        onClick={() => {
+                                          const amt = prompt("Montant du paiement (DH):", String(remaining > 0 ? remaining : 0))
+                                          if (amt) handlePayAction(t.id, "pay-tuition", parseFloat(amt))
+                                        }}
+                                        disabled={t.status === "PAID"}
+                                      >
+                                        <CreditCard className="mr-1 h-3 w-3" /> Payer
+                                      </Button>
+                                      {remaining > 0 && (
+                                        <Button
+                                          variant="outline" size="sm"
+                                          onClick={() => {
+                                            if (confirm(`Payer l'annee complete pour ${t.student.firstName} ${t.student.lastName} ? (${remaining.toLocaleString()} DH)`))
+                                              handlePayAction(t.id, "pay-full-year")
+                                          }}
+                                        >
+                                          <DollarSign className="mr-1 h-3 w-3" /> Annee
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )
+                  })
+                })()}
               </div>
             )}
           </CardContent>
