@@ -4,8 +4,11 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { LEVEL_LABELS } from "@/lib/utils"
-import { Printer, ArrowLeft, AlertOctagon } from "lucide-react"
+import { Printer, ArrowLeft, AlertOctagon, CheckCircle, XCircle } from "lucide-react"
+
+const MONTH_NAMES = ["Septembre", "Octobre", "Novembre", "Decembre", "Janvier", "Fevrier", "Mars", "Avril", "Mai", "Juin"]
 
 function fmt(n: number): string {
   return n.toLocaleString("fr-FR") + " DH"
@@ -39,7 +42,8 @@ export default function RecuPage() {
 
   const fr = receipt.financialRecord
   const student = fr.student
-  const label = fr.type === "INSCRIPTION" ? "Frais d'inscription" : "Paiement de scolarité"
+  const isInscription = fr.type === "INSCRIPTION"
+  const monthsPaid = receipt.tracking?.monthsPaid ?? 0
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -55,7 +59,9 @@ export default function RecuPage() {
       <div id="recu" className="rounded-lg border bg-white p-8 shadow-sm print:border-0 print:shadow-none">
         <div className="mb-8 text-center border-b pb-6">
           <h1 className="text-2xl font-bold uppercase tracking-wide">Groupe Scolaire Privé L&apos;Orangeraie</h1>
-          <p className="text-sm text-muted-foreground">RECU DE PAIEMENT</p>
+          <p className="text-lg font-semibold text-muted-foreground">
+            {isInscription ? "REÇU DE FRAIS D&apos;INSCRIPTION" : "REÇU DE PAIEMENT DE SCOLARITÉ"}
+          </p>
         </div>
 
         <div className="mb-6 flex items-center justify-between text-sm">
@@ -70,6 +76,29 @@ export default function RecuPage() {
           <p><span className="font-medium">Année scolaire :</span> {receipt.academicYear}</p>
         </div>
 
+        {!isInscription && (
+          <div className="mb-6">
+            <p className="mb-2 text-sm font-medium">Mois payés :</p>
+            <div className="grid grid-cols-5 gap-1.5">
+              {MONTH_NAMES.map((name, i) => {
+                const paid = i < monthsPaid
+                return (
+                  <div key={name}
+                    className={`flex items-center justify-center gap-1 rounded-md border py-2 text-xs font-medium ${
+                      paid
+                        ? "bg-green-100 border-green-300 text-green-700"
+                        : "bg-slate-50 border-slate-200 text-slate-400"
+                    }`}
+                  >
+                    {paid ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                    {name}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         <table className="mb-6 w-full text-sm">
           <thead>
             <tr className="border-b border-t">
@@ -79,7 +108,7 @@ export default function RecuPage() {
           </thead>
           <tbody>
             <tr className="border-b">
-              <td className="py-3">{fr.description}</td>
+              <td className="py-3">{isInscription ? `Frais d'inscription ${receipt.academicYear}` : fr.description}</td>
               <td className="py-3 text-right font-bold">{fmt(fr.amount)}</td>
             </tr>
           </tbody>
@@ -92,7 +121,9 @@ export default function RecuPage() {
 
         <div className="flex justify-between text-sm text-muted-foreground">
           <div className="text-center">
-            <p className="mb-8">Cachet et signature</p>
+            <p className="mb-8">
+              {isInscription ? "Cachet de l'établissement" : "Cachet et signature"}
+            </p>
             <p>_________________________</p>
           </div>
           <div className="text-center">

@@ -55,8 +55,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
   if (action === "pay-months") {
     const n = months || 1
-    const newMonths = Math.min(tracking.monthsPaid + n, 10)
-    const addedMonths = newMonths - tracking.monthsPaid
+    const oldMonths = tracking.monthsPaid
+    const newMonths = Math.min(oldMonths + n, 10)
+    const addedMonths = newMonths - oldMonths
     const addedAmount = tracking.monthlyAmount * addedMonths
     const newPaid = tracking.tuitionPaid + addedAmount
     const newStatus = newMonths >= 10 ? "PAID" : newPaid > 0 ? "PARTIAL" : "UNPAID"
@@ -65,13 +66,17 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       data: { monthsPaid: newMonths, tuitionPaid: newPaid, status: newStatus },
     })
     if (addedAmount > 0) {
-      const label = addedMonths > 1 ? `${addedMonths} mois` : "1 mois"
+      const MONTH_NAMES = ["Septembre", "Octobre", "Novembre", "Decembre", "Janvier", "Fevrier", "Mars", "Avril", "Mai", "Juin"]
+      const paidMonths = MONTH_NAMES.slice(oldMonths, newMonths)
+      const label = paidMonths.length > 1
+        ? `${paidMonths[0]} à ${paidMonths[paidMonths.length - 1]}`
+        : paidMonths[0]
       const fr = await prisma.financialRecord.create({
         data: {
           studentId: tracking.studentId,
           type: "TUITION",
           amount: addedAmount,
-          description: `Paiement ${label} - ${tracking.student.firstName} ${tracking.student.lastName}`,
+          description: `Paiement ${label}`,
           academicYear: tracking.academicYear,
           archived: false,
         },

@@ -25,7 +25,20 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ error: "Recu introuvable" }, { status: 404 })
     }
 
-    return NextResponse.json(receipt)
+    let tracking = null
+    if (receipt.financialRecord.studentId) {
+      tracking = await prisma.tuitionTracking.findUnique({
+        where: {
+          studentId_academicYear: {
+            studentId: receipt.financialRecord.studentId,
+            academicYear: receipt.academicYear,
+          },
+        },
+        select: { monthsPaid: true, monthlyAmount: true, tuitionDue: true, tuitionPaid: true, inscriptionPaid: true },
+      })
+    }
+
+    return NextResponse.json({ ...receipt, tracking })
   } catch (error) {
     console.error("ERREUR recu:", error)
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 })
