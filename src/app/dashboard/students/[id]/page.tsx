@@ -7,8 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
-import { LEVEL_LABELS } from "@/lib/utils"
-import { ArrowLeft, Save, Trash2 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { LEVEL_LABELS, getAcademicYear } from "@/lib/utils"
+import { ArrowLeft, Save, Trash2, CreditCard, DollarSign, CheckCircle, XCircle } from "lucide-react"
+
+const MONTH_NAMES = ["Septembre", "Octobre", "Novembre", "Decembre", "Janvier", "Fevrier", "Mars", "Avril", "Mai", "Juin"]
 
 const levelOptions = Object.entries(LEVEL_LABELS).map(([value, label]) => ({ value, label }))
 const statusOptions = [
@@ -37,6 +40,9 @@ export default function StudentDetailPage() {
     address: "",
   })
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState("")
+  const [tracking, setTracking] = useState<any>(null)
+  const [payingMonths, setPayingMonths] = useState(0)
 
   useEffect(() => {
     if (!isNew && params.id) {
@@ -58,11 +64,21 @@ export default function StudentDetailPage() {
           })
         })
     }
+    if (!isNew && params.id) {
+      const year = getAcademicYear()
+      fetch(`/api/finances/trackings?academicYear=${year}`)
+        .then((r) => r.json())
+        .then((list) => {
+          const found = list.find((t: any) => t.studentId === params.id)
+          if (found) setTracking(found)
+        })
+    }
   }, [params.id])
 
   async function handleSave() {
     if (!isDirection) return
     setSaving(true)
+    setError("")
 
     const url = isNew ? "/api/students" : `/api/students/${params.id}`
     const method = isNew ? "POST" : "PUT"
@@ -72,15 +88,54 @@ export default function StudentDetailPage() {
       monthlyTuition: form.monthlyTuition ? parseFloat(form.monthlyTuition) : null,
       inscriptionFee: form.inscriptionFee ? parseFloat(form.inscriptionFee) : null,
     }
-    await fetch(url, {
+    const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     })
 
     setSaving(false)
+
+    if (!res.ok) {
+      const text = await res.text()
+      setError(text.slice(0, 200))
+      return
+    }
+
     router.push("/dashboard/students")
     router.refresh()
+  }
+
+  async function handlePayMonths(months: number) {
+    if (!tracking) return
+    const label = months >= 10 ? "toute l'annee" : months > 1 ? `${months} mois` : "1 mois"
+    const total = tracking.monthlyAmount * months
+    if (!confirm(`Payer ${label} (${total.toLocaleString()} DH) pour ${form.firstName} ${form.lastName} ?`)) return
+    await fetch(`/api/finances/trackings/${tracking.id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "pay-months", months }),
+    })
+    setPayingMonths(0)
+    const year = getAcademicYear()
+    const list = await fetch(`/api/finances/trackings?academicYear=${year}`).then((r) => r.json())
+    const found = list.find((t: any) => t.studentId === params.id)
+    if (found) setTracking(found)
+  }
+
+  async function handlePayInscription() {
+    if (!tracking) return
+    const fee = tracking.inscriptionFee || 500
+    if (!confirm(`Payer les frais d'inscription (${fee.toLocaleString()} DH) pour ${form.firstName} ${form.lastName} ?`)) return
+    await fetch(`/api/finances/trackings/${tracking.id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "pay-inscription" }),
+    })
+    const year = getAcademicYear()
+    const list = await fetch(`/api/finances/trackings?academicYear=${year}`).then((r) => r.json())
+    const found = list.find((t: any) => t.studentId === params.id)
+    if (found) setTracking(found)
   }
 
   async function handleDelete() {
@@ -129,11 +184,17 @@ export default function StudentDetailPage() {
         )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Informations</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+        {error && (
+          <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Informations</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <label className="text-sm font-medium">Nom</label>
@@ -252,6 +313,74 @@ export default function StudentDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {!isNew && tracking && isDirection && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Paiements</CardTitle>
+              <div className="flex items-center gap-2 text-sm">
+                {tracking.inscriptionPaid ? (
+                  <Badge variant="success">Inscription payee</Badge>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={handlePayInscription}>
+                    <XCircle className="mr-1 h-3 w-3 text-red-500" /> Payer inscription
+                  </Button>
+                )}
+                <Badge variant="secondary">{tracking.monthsPaid}/10 mois</Badge>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="text-sm text-muted-foreground">
+              Mensualite: <strong>{tracking.monthlyAmount.toLocaleString()} DH</strong>
+              {" | "}Total an: <strong>{tracking.tuitionDue.toLocaleString()} DH</strong>
+              {" | "}Paye: <strong className="text-green-600">{tracking.tuitionPaid.toLocaleString()} DH</strong>
+              {" | "}Reste: <strong className={tracking.tuitionDue - tracking.tuitionPaid > 0 ? "text-red-600" : "text-green-600"}>
+                {(tracking.tuitionDue - tracking.tuitionPaid).toLocaleString()} DH
+              </strong>
+            </div>
+
+            <div className="grid grid-cols-5 gap-2">
+              {MONTH_NAMES.map((name, i) => {
+                const paid = i < tracking.monthsPaid
+                return (
+                  <div key={name}
+                    className={`flex items-center justify-center rounded-md border py-3 text-sm font-medium ${
+                      paid
+                        ? "bg-green-100 border-green-300 text-green-700"
+                        : "bg-slate-50 border-slate-200 text-slate-500"
+                    }`}
+                  >
+                    {paid ? <CheckCircle className="mr-1 h-4 w-4 text-green-500" /> : <XCircle className="mr-1 h-4 w-4 text-slate-300" />}
+                    {name}
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-2">
+              <Button onClick={() => handlePayMonths(1)} disabled={tracking.monthsPaid >= 10}>
+                <CreditCard className="mr-1 h-4 w-4" /> 1 mois
+              </Button>
+              <Button variant="outline" onClick={() => handlePayMonths(2)} disabled={tracking.monthsPaid >= 9}>
+                2 mois
+              </Button>
+              <Button variant="outline" onClick={() => handlePayMonths(3)} disabled={tracking.monthsPaid >= 8}>
+                3 mois
+              </Button>
+              {tracking.monthsPaid < 10 && (
+                <Button variant="outline" onClick={() => handlePayMonths(5)} disabled={tracking.monthsPaid >= 6}>
+                  5 mois
+                </Button>
+              )}
+              <Button variant="default" onClick={() => handlePayMonths(10)} disabled={tracking.monthsPaid >= 10}>
+                <DollarSign className="mr-1 h-4 w-4" /> Toute l&apos;annee
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

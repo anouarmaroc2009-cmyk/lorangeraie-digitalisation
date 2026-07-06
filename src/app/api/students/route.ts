@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { getAcademicYear } from "@/lib/utils"
 import { Level } from "@prisma/client"
 
 export async function GET(req: Request) {
@@ -32,5 +33,23 @@ export async function POST(req: Request) {
 
   const body = await req.json()
   const student = await prisma.student.create({ data: body })
+
+  if (student.status === "ACTIVE") {
+    const year = getAcademicYear()
+    const monthly = student.monthlyTuition ?? 0
+    await prisma.tuitionTracking.upsert({
+      where: { studentId_academicYear: { studentId: student.id, academicYear: year } },
+      create: {
+        studentId: student.id,
+        academicYear: year,
+        monthlyAmount: monthly,
+        tuitionDue: monthly * 10,
+        monthsPaid: 0,
+        inscriptionFee: student.inscriptionFee ?? 0,
+      },
+      update: {},
+    })
+  }
+
   return NextResponse.json(student)
 }

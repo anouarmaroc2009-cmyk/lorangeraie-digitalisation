@@ -11,7 +11,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 
   const body = await req.json()
-  const { action, amount } = body
+  const { action, amount, months } = body
   const tracking = await prisma.tuitionTracking.findUnique({
     where: { id: params.id },
     include: { student: true },
@@ -36,23 +36,30 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     })
   }
 
-  if (action === "pay-tuition") {
-    const newPaid = tracking.tuitionPaid + (amount || 0)
-    const newStatus = newPaid >= tracking.tuitionDue ? "PAID" : "PARTIAL"
+  if (action === "pay-months") {
+    const n = months || 1
+    const newMonths = Math.min(tracking.monthsPaid + n, 10)
+    const addedMonths = newMonths - tracking.monthsPaid
+    const addedAmount = tracking.monthlyAmount * addedMonths
+    const newPaid = tracking.tuitionPaid + addedAmount
+    const newStatus = newMonths >= 10 ? "PAID" : newPaid > 0 ? "PARTIAL" : "UNPAID"
     await prisma.tuitionTracking.update({
       where: { id: params.id },
-      data: { tuitionPaid: newPaid, status: newStatus },
+      data: { monthsPaid: newMonths, tuitionPaid: newPaid, status: newStatus },
     })
-    await prisma.financialRecord.create({
-      data: {
-        studentId: tracking.studentId,
-        type: "TUITION",
-        amount: amount || 0,
-        description: `Paiement scolarite - ${tracking.student.firstName} ${tracking.student.lastName}`,
-        academicYear: tracking.academicYear,
-        archived: false,
-      },
-    })
+    if (addedAmount > 0) {
+      const label = addedMonths > 1 ? `${addedMonths} mois` : "1 mois"
+      await prisma.financialRecord.create({
+        data: {
+          studentId: tracking.studentId,
+          type: "TUITION",
+          amount: addedAmount,
+          description: `Paiement ${label} - ${tracking.student.firstName} ${tracking.student.lastName}`,
+          academicYear: tracking.academicYear,
+          archived: false,
+        },
+      })
+    }
   }
 
   if (action === "pay-full-year") {
@@ -61,20 +68,23 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       where: { id: params.id },
       data: {
         tuitionPaid: tracking.tuitionDue,
+        monthsPaid: 10,
         paidFullYear: true,
         status: "PAID",
       },
     })
-    await prisma.financialRecord.create({
-      data: {
-        studentId: tracking.studentId,
-        type: "TUITION",
-        amount: remaining,
-        description: `Paiement annuel complet - ${tracking.student.firstName} ${tracking.student.lastName}`,
-        academicYear: tracking.academicYear,
-        archived: false,
-      },
-    })
+    if (remaining > 0) {
+      await prisma.financialRecord.create({
+        data: {
+          studentId: tracking.studentId,
+          type: "TUITION",
+          amount: remaining,
+          description: `Paiement annuel complet - ${tracking.student.firstName} ${tracking.student.lastName}`,
+          academicYear: tracking.academicYear,
+          archived: false,
+        },
+      })
+    }
   }
 
   if (action === "update-monthly") {

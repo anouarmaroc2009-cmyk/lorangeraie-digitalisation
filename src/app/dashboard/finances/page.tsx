@@ -29,7 +29,7 @@ interface FinanceData {
 
 interface Tracking {
   id: string; studentId: string; academicYear: string
-  monthlyAmount: number; tuitionDue: number; tuitionPaid: number
+  monthlyAmount: number; tuitionDue: number; tuitionPaid: number; monthsPaid: number
   inscriptionFee: number; inscriptionPaid: boolean
   paidFullYear: boolean; status: "UNPAID" | "PARTIAL" | "PAID"
   student: { id: string; firstName: string; lastName: string; massar: string; level: string; status: string }
@@ -110,11 +110,11 @@ export default function FinancesPage() {
     fetchAll()
   }
 
-  async function handlePayAction(trackingId: string, action: string, amount?: number) {
+  async function handlePayAction(trackingId: string, action: string, months?: number) {
     await fetch(`/api/finances/trackings/${trackingId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, amount: amount || 0 }),
+      body: JSON.stringify({ action, months: months || 0 }),
     })
     setPayingStudent(null)
     setPayAmount("")
@@ -323,6 +323,7 @@ export default function FinancesPage() {
                                   </td>
                                   <td className="px-4 py-3 text-right font-medium text-green-600">
                                     {t.tuitionPaid.toLocaleString()} DH
+                                    <br /><span className="text-xs text-muted-foreground">{t.monthsPaid}/10 mois</span>
                                   </td>
                                   <td className="px-4 py-3 text-right font-medium">
                                     <span className={remaining > 0 ? "text-red-600" : "text-green-600"}>
@@ -347,31 +348,33 @@ export default function FinancesPage() {
                                     )}
                                   </td>
                                   <td className="px-4 py-3 text-center">{getStatusBadge(t)}</td>
-                                  <td className="px-4 py-3">
-                                    <div className="flex flex-wrap gap-1">
-                                      <Button
-                                        variant="outline" size="sm"
-                                        onClick={() => {
-                                          const amt = prompt("Montant du paiement (DH):", String(remaining > 0 ? remaining : 0))
-                                          if (amt) handlePayAction(t.id, "pay-tuition", parseFloat(amt))
-                                        }}
-                                        disabled={t.status === "PAID"}
-                                      >
-                                        <CreditCard className="mr-1 h-3 w-3" /> Payer
-                                      </Button>
-                                      {remaining > 0 && (
-                                        <Button
-                                          variant="outline" size="sm"
-                                          onClick={() => {
-                                            if (confirm(`Payer l'annee complete pour ${t.student.firstName} ${t.student.lastName} ? (${remaining.toLocaleString()} DH)`))
-                                              handlePayAction(t.id, "pay-full-year")
-                                          }}
-                                        >
-                                          <DollarSign className="mr-1 h-3 w-3" /> Annee
-                                        </Button>
-                                      )}
-                                    </div>
-                                  </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-1">
+                              <Button
+                                variant="outline" size="sm"
+                                onClick={() => {
+                                  if (confirm(`Payer 1 mois (${t.monthlyAmount.toLocaleString()} DH) pour ${t.student.firstName} ${t.student.lastName} ?`))
+                                    handlePayAction(t.id, "pay-months", 1)
+                                }}
+                                disabled={t.monthsPaid >= 10}
+                                title="Payer 1 mois"
+                              >
+                                <CreditCard className="mr-1 h-3 w-3" /> 1 mois
+                              </Button>
+                              {remaining > 0 && (
+                                <Button
+                                  variant="outline" size="sm"
+                                  onClick={() => {
+                                    if (confirm(`Payer le solde restant (${remaining.toLocaleString()} DH) pour ${t.student.firstName} ${t.student.lastName} ?`))
+                                      handlePayAction(t.id, "pay-full-year")
+                                  }}
+                                  title="Payer toute l'annee"
+                                >
+                                  <DollarSign className="mr-1 h-3 w-3" /> Toute l&apos;annee
+                                </Button>
+                              )}
+                            </div>
+                          </td>
                                 </tr>
                               )
                             })}

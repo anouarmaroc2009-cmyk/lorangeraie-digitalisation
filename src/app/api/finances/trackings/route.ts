@@ -51,6 +51,7 @@ export async function POST(req: Request) {
           academicYear: year,
           monthlyAmount: monthly,
           tuitionDue: monthly * 10,
+          monthsPaid: 0,
           inscriptionFee: student.inscriptionFee ?? 0,
         },
       })

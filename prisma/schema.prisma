@@ -111,6 +111,7 @@ model TuitionTracking {
   monthlyAmount   Float         @default(0)
   tuitionDue      Float
   tuitionPaid     Float         @default(0)
+  monthsPaid      Int           @default(0)
   inscriptionFee  Float         @default(0)
   inscriptionPaid Boolean       @default(false)
   paidFullYear    Boolean       @default(false)
