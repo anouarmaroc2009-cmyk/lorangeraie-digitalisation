@@ -37,15 +37,10 @@ export function getAcademicYear(date?: Date): string {
   const d = date ?? new Date()
   const year = d.getFullYear()
   const month = d.getMonth() + 1
-  if (month >= 9) return `${year}-${year + 1}`
+  if (month > 6 || (month === 6 && d.getDate() >= 30)) return `${year}-${year + 1}`
   return `${year - 1}-${year}`
 }
 
 export function getCurrentAcademicYear(): string {
   return getAcademicYear()
-}
-
-export function isAfterJuly30(): boolean {
-  const now = new Date()
-  return now.getMonth() > 6 || (now.getMonth() === 6 && now.getDate() >= 30)
 }
