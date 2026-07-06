@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   GraduationCap,
   Wallet,
+  TrendingDown,
   Users,
   LogOut,
   Menu,
@@ -32,7 +33,8 @@ export default function Sidebar() {
   const items = isDirection
     ? [
         ...navItems,
-        { href: "/dashboard/finances", label: "Finances", icon: Wallet },
+        { href: "/dashboard/finances", label: "Suivi paiements", icon: Wallet },
+        { href: "/dashboard/finances/depenses", label: "Dépenses", icon: TrendingDown },
       ]
     : navItems
 

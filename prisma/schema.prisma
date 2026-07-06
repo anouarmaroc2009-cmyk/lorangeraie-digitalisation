@@ -127,6 +127,7 @@ model FinancialRecord {
   id           String          @id @default(cuid())
   studentId    String?
   type         TransactionType
+  category     String?
   amount       Float
   description  String
   date         DateTime        @default(now())
