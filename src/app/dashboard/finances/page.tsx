@@ -322,6 +322,9 @@ export default function FinancesPage() {
                           {s.tracking.remaining > 0 && (
                             <Button variant="ghost" size="sm" onClick={() => payFull(s.tracking.id, s.tracking.remaining)} title="Tout payer"><DollarSign className="h-3 w-3" /></Button>
                           )}
+                          {s.lastReceiptId && (
+                            <Button variant="ghost" size="sm" onClick={() => router.push(`/dashboard/finances/recu/${s.lastReceiptId}`)} title="Voir le reçu"><FileText className="h-3 w-3" /></Button>
+                          )}
                           <Button variant="ghost" size="sm" onClick={() => router.push(`/dashboard/students/${s.id}`)} title="Fiche élève"><ChevronRight className="h-3 w-3" /></Button>
                         </div>
                       </td>

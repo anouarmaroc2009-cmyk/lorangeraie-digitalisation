@@ -38,6 +38,23 @@ export async function GET(req: Request) {
       orderBy: [{ level: "asc" }, { lastName: "asc" }],
     })
 
+    const allFinancialRecords = await prisma.financialRecord.findMany({
+      where: {
+        studentId: { in: students.map((s) => s.id) },
+        academicYear,
+        type: { in: ["TUITION", "INSCRIPTION"] },
+        archived: false,
+      },
+      include: { receipt: { select: { id: true } } },
+      orderBy: { date: "desc" },
+    })
+    const receiptByStudent = new Map<string, string>()
+    for (const fr of allFinancialRecords) {
+      if (fr.receipt && !receiptByStudent.has(fr.studentId!)) {
+        receiptByStudent.set(fr.studentId!, fr.receipt.id)
+      }
+    }
+
     const mapped = students.map((s) => {
       const t = s.tuitionTrackings[0]
       const monthly = t?.monthlyAmount ?? s.monthlyTuition ?? 0
@@ -50,6 +67,7 @@ export async function GET(req: Request) {
         massar: s.massar,
         level: s.level,
         reenrolled: s.reenrolled,
+        lastReceiptId: receiptByStudent.get(s.id) ?? null,
         tracking: t
           ? {
               id: t.id,
