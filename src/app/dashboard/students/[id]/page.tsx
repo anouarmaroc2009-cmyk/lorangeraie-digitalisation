@@ -111,31 +111,27 @@ export default function StudentDetailPage() {
     const label = months >= 10 ? "toute l'annee" : months > 1 ? `${months} mois` : "1 mois"
     const total = tracking.monthlyAmount * months
     if (!confirm(`Payer ${label} (${total.toLocaleString()} DH) pour ${form.firstName} ${form.lastName} ?`)) return
-    await fetch(`/api/finances/trackings/${tracking.id}`, {
+    const r = await fetch(`/api/finances/trackings/${tracking.id}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "pay-months", months }),
     })
+    const j = await r.json()
     setPayingMonths(0)
-    const year = getAcademicYear()
-    const list = await fetch(`/api/finances/trackings?academicYear=${year}`).then((r) => r.json())
-    const found = list.find((t: any) => t.studentId === params.id)
-    if (found) setTracking(found)
+    if (j.receiptId) router.push(`/dashboard/finances/recu/${j.receiptId}`)
   }
 
   async function handlePayInscription() {
     if (!tracking) return
     const fee = tracking.inscriptionFee || 500
     if (!confirm(`Payer les frais d'inscription (${fee.toLocaleString()} DH) pour ${form.firstName} ${form.lastName} ?`)) return
-    await fetch(`/api/finances/trackings/${tracking.id}`, {
+    const r = await fetch(`/api/finances/trackings/${tracking.id}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "pay-inscription" }),
     })
-    const year = getAcademicYear()
-    const list = await fetch(`/api/finances/trackings?academicYear=${year}`).then((r) => r.json())
-    const found = list.find((t: any) => t.studentId === params.id)
-    if (found) setTracking(found)
+    const j = await r.json()
+    if (j.receiptId) router.push(`/dashboard/finances/recu/${j.receiptId}`)
   }
 
   async function handleDelete() {
