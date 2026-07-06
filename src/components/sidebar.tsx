@@ -30,7 +30,10 @@ export default function Sidebar() {
   const isDirection = session?.user?.role === "DIRECTION"
 
   const items = isDirection
-    ? [...navItems, { href: "/dashboard/finances", label: "Finances", icon: Wallet }]
+    ? [
+        ...navItems,
+        { href: "/dashboard/finances", label: "Finances", icon: Wallet },
+      ]
     : navItems
 
   return (
