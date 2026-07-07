@@ -186,6 +186,9 @@ export default function FinancesPage() {
           <p className="text-sm text-muted-foreground">Année {year} — {activeTab?.label || "Toutes"}</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/finances/recu/nouveau")}>
+            <FileText className="mr-1 h-3 w-3" /> Nouveau reçu
+          </Button>
           <Button variant="outline" size="sm" onClick={initYear} disabled={initBusy}>
             <RotateCcw className="mr-1 h-3 w-3" /> {initBusy ? "..." : "Initialiser"}
           </Button>

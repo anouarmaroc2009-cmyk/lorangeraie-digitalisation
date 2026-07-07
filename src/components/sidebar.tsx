@@ -13,6 +13,7 @@ import {
   LogOut,
   Menu,
   X,
+  FileText,
 } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -34,6 +35,7 @@ export default function Sidebar() {
     ? [
         ...navItems,
         { href: "/dashboard/finances", label: "Suivi paiements", icon: Wallet },
+        { href: "/dashboard/finances/recu/nouveau", label: "Nouveau reçu", icon: FileText },
         { href: "/dashboard/finances/depenses", label: "Dépenses", icon: TrendingDown },
       ]
     : navItems
