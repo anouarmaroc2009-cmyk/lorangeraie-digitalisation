@@ -60,7 +60,7 @@ export default function RecuPage() {
         <div className="mb-8 text-center border-b pb-6">
           <h1 className="text-2xl font-bold uppercase tracking-wide">Groupe Scolaire Privé L&apos;Orangeraie</h1>
           <p className="text-lg font-semibold text-muted-foreground">
-            {isInscription ? "REÇU DE FRAIS D&apos;INSCRIPTION" : "REÇU DE PAIEMENT DE SCOLARITÉ"}
+            {isInscription ? "REÇU DE FRAIS D'INSCRIPTION" : "REÇU DE PAIEMENT DE SCOLARITÉ"}
           </p>
         </div>
 
